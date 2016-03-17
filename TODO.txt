@@ -1,0 +1,4 @@
+- store all historical quakes in SQLite or Tingodb
+- fetch the most recent quake on app start up,
+  fill in from the appropriate range (hour, day, week, month),
+  then start doing regular queries against the hourly feed
