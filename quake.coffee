@@ -97,17 +97,17 @@ getQuakes()
 
   quakes = _(geo.data.features)
 
-  ps = quakes.map (quake) ->
-    addQuake quake
-    .then (newQuake) ->
-      if newQuake?
-        console.log "Send alert for #{newQuake.id} (magnitude #{newQuake.properties.mag}."
-      else
-        console.log "#{quake.id} (magnitude #{quake.properties.mag}) is old news."
-    .then ->
-      true
-    .catch (error) ->
-      console.error "Error adding new Quake: #{error}\n#{error.stack}"
+  ps = quakes
+    .map (quake) ->
+      addQuake quake
+      .then (newQuake) ->
+        if newQuake?
+          console.log "Send alert for #{newQuake.id} (magnitude #{newQuake.properties.mag}."
+        else
+          console.log "#{quake.id} (magnitude #{quake.properties.mag}) is old news."
+      .then ->
+        true
+    .value()
 
   Q.all ps
 
