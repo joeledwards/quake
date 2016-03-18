@@ -4,6 +4,7 @@
   "description": "USGS Quake Feed Reader",
   "main": "quake.coffee",
   "scripts": {
+    "redis": "coffee redis.coffee",
     "start": "coffee quake.coffee"
   },
   "keywords": [
@@ -17,10 +18,13 @@
   "dependencies": {
     "coffee-script": "^1.10.0",
     "durations": "^2.0.0",
+    "ioredis": "^1.15.1",
     "lodash": "^4.6.1",
     "log-a-log": "^1.2.1",
     "moment": "^2.12.0",
     "q": "^1.4.1",
-    "request": "^2.69.0"
+    "request": "^2.69.0",
+    "sqlite3": "^3.1.1",
+    "tingodb": "^0.4.2"
   }
 }

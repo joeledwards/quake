@@ -5,6 +5,7 @@ require 'log-a-log'
 Q = require 'q'
 _ = require 'lodash'
 moment = require 'moment'
+Redis = require 'ioredis'
 request = require 'request'
 durations = require 'durations'
 
@@ -30,8 +31,31 @@ dayAll = "#{baseUrl}/all_day.geojson"
 weekAll = "#{baseUrl}/all_week.geojson"
 monthAll = "#{baseUrl}/all_month.geojson"
 
-url = month45
+url = day45
+expiration = 24 * 60 * 60 * 1000
 
+redis = new Redis()
+
+# Attempt to add a quake to the database
+addQuake = (quake) ->
+  {id, time, tz, geometry: {coordinates: [longitude, latitude, depth]}} = quake
+
+  now = moment.utc()
+  timestamp = moment(time)
+  expire = expiration - (now.valueOf() - timestamp.valueOf())
+
+  key = "quake::#{id}"
+
+  redis.set key, quake, 'PX', expire, 'NX'
+  .then (result) ->
+    if result == "OK"
+      console.log "New quake added [#{id}]"
+      quake
+    else
+      undefined
+
+
+# Fetch the latest quakes
 getQuakes = ->
   d = Q.defer()
   requestWatch = durations.stopwatch().start()
@@ -60,12 +84,37 @@ getQuakes = ->
         d.reject error
   d.promise
 
+
+# Fetch quakes
 getQuakes()
+
+# Process the results
 .then (geo) ->
   console.log "Got the JSON:"
   console.log JSON.stringify(geo.data, null, 2)
   console.log "#{_(geo.data.features).size()} features."
   console.log "Fetch took #{geo.requestDuration}; parsing took #{geo.parseDuration}"
+
+  quakes = _(geo.data.features)
+
+  ps = quakes.map (quake) ->
+    addQuake quake
+    .then (newQuake) ->
+      if newQuake?
+        console.log "Send alert for #{newQuake.id} (magnitude #{newQuake.properties.mag}."
+      else
+        console.log "#{quake.id} (magnitude #{quake.properties.mag}) is old news."
+    .then ->
+      true
+    .catch (error) ->
+      console.error "Error adding new Quake: #{error}\n#{error.stack}"
+
+  Q.all ps
+
+.then ->
+  console.log "All done."
+  redis.disconnect()
+
 .catch (error) ->
   console.error "Error fetching Geo JSON: #{error}\n#{error.stack}"
 
