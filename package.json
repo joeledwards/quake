@@ -4,6 +4,7 @@
   "description": "USGS Quake Feed Reader",
   "main": "quake.coffee",
   "scripts": {
+    "flush": "coffee flush.coffee",
     "redis": "coffee redis.coffee",
     "start": "coffee quake.coffee"
   },

@@ -31,14 +31,14 @@ dayAll = "#{baseUrl}/all_day.geojson"
 weekAll = "#{baseUrl}/all_week.geojson"
 monthAll = "#{baseUrl}/all_month.geojson"
 
-url = day45
+url = month45
 expiration = 24 * 60 * 60 * 1000
 
 redis = new Redis()
 
 # Attempt to add a quake to the database
 addQuake = (quake) ->
-  {id, time, tz, geometry: {coordinates: [longitude, latitude, depth]}} = quake
+  {id, properties: {mag, time, tz}, geometry: {coordinates: [longitude, latitude, depth]}} = quake
 
   now = moment.utc()
   timestamp = moment(time)
@@ -46,13 +46,19 @@ addQuake = (quake) ->
 
   key = "quake::#{id}"
 
-  redis.set key, quake, 'PX', expire, 'NX'
-  .then (result) ->
-    if result == "OK"
-      console.log "New quake added [#{id}]"
-      quake
-    else
-      undefined
+  if expire < 0
+    #console.log "Expire for #{key} is #{expire}"
+    Q(undefined)
+  else 
+    Q(true)
+    .then ->
+      redis.set key, JSON.stringify(quake), 'PX', expire, 'NX'
+      .then (result) ->
+        if result == "OK"
+          console.log "New quake added [#{id}] magnitude #{mag} (#{longitude}, #{latitude}, #{depth} km)"
+          quake
+        else
+          undefined
 
 
 # Fetch the latest quakes
@@ -91,27 +97,37 @@ getQuakes()
 # Process the results
 .then (geo) ->
   console.log "Got the JSON:"
-  console.log JSON.stringify(geo.data, null, 2)
+  #console.log JSON.stringify(geo.data, null, 2)
   console.log "#{_(geo.data.features).size()} features."
   console.log "Fetch took #{geo.requestDuration}; parsing took #{geo.parseDuration}"
 
   quakes = _(geo.data.features)
 
+  newQuakes = 0
+  oldQuakes = 0
   ps = quakes
     .map (quake) ->
       addQuake quake
       .then (newQuake) ->
         if newQuake?
-          console.log "Send alert for #{newQuake.id} (magnitude #{newQuake.properties.mag}."
+          #console.log "Send alert for #{newQuake.id} (magnitude #{newQuake.properties.mag}."
+          newQuakes += 1
         else
-          console.log "#{quake.id} (magnitude #{quake.properties.mag}) is old news."
+          #console.log "#{quake.id} (magnitude #{quake.properties.mag}) is old news."
+          oldQuakes += 1
       .then ->
         true
     .value()
 
   Q.all ps
+  .then ->
+    geo: geo
+    newQuakes: newQuakes
+    oldQuakes: oldQuakes
 
-.then ->
+.then ({geo, newQuakes, oldQuakes}) ->
+  console.log "Fetch took #{geo.requestDuration}; parsing took #{geo.parseDuration}"
+  console.log "#{_(geo.data.features).size()} features (#{oldQuakes} old, #{newQuakes} new)."
   console.log "All done."
   redis.disconnect()
 
