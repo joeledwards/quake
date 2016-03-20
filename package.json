@@ -6,7 +6,8 @@
   "scripts": {
     "flush": "coffee flush.coffee",
     "redis": "coffee redis.coffee",
-    "start": "coffee quake.coffee"
+    "start": "coffee quake.coffee",
+    "tingo": "coffee tingo.coffee"
   },
   "keywords": [
     "usgs",
